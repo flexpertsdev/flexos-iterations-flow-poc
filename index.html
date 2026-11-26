@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Iteration flow · prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap">
+<style>
+:root {
+  --bg: #0d1317; --rail: #0a0f12; --surface: #141c22; --raised: #1b252c; --line: #26323a;
+  --fg: #e6eef2; --muted: #8b9aa4; --green: #16c181; --green-ink: #04120c;
+  --amber: #ffb020; --red: #ff6b6b; --stage: #070b0d;
+  --font: 'Quicksand', ui-rounded, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #eef2f4; --rail: #e3e9ec; --surface: #ffffff; --raised: #f5f8f9; --line: #d9e1e5;
+  --fg: #12202a; --muted: #5b6b75; --green: #0b9c66; --green-ink: #ffffff; --stage: #dfe6ea; color-scheme: light } }
+:root[data-theme="light"] {
+  --bg: #eef2f4; --rail: #e3e9ec; --surface: #ffffff; --raised: #f5f8f9; --line: #d9e1e5;
+  --fg: #12202a; --muted: #5b6b75; --green: #0b9c66; --green-ink: #ffffff; --stage: #dfe6ea; color-scheme: light }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100% }
+*, *::before, *::after { box-sizing: border-box }
+body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 500 14px/1.45 var(--font); overflow: hidden }
+button { font: inherit; color: inherit }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px }
+
+.app { display: grid; grid-template-columns: 56px 272px 1fr; height: 100% }
+.app > * { min-width: 0; min-height: 0 }
+.stage.panels .edge { display: none }
+
+/* rail */
+.rail { background: var(--rail); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0 }
+.rail .logo { width: 34px; height: 34px; border-radius: 10px; background: var(--green); display: grid; place-items: center; margin-bottom: 10px }
+.rail .logo svg { width: 20px; height: 20px }
+.rail button { width: 38px; height: 38px; border: 0; border-radius: 10px; background: transparent; display: grid; place-items: center; color: var(--muted); cursor: pointer }
+.rail button.on { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green) }
+.rail svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round }
+.rail .spacer { flex: 1 }
+
+/* side panel */
+.side { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0 }
+.side header { padding: 16px 16px 8px }
+.side h1 { font-size: 20px; margin: 0; font-weight: 700 }
+.side .crumb { color: var(--muted); font-size: 12.5px; margin-top: 2px }
+.side .fly { margin: 8px 16px 10px; display: flex; gap: 8px }
+.btn { border: 1px solid var(--line); background: var(--raised); border-radius: 9px; padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px }
+.btn:hover { border-color: color-mix(in srgb, var(--green) 50%, var(--line)) }
+.btn.primary { background: var(--green); border-color: var(--green); color: var(--green-ink) }
+.btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.list { overflow-y: auto; padding: 4px 8px 16px; flex: 1 }
+.it { display: grid; grid-template-columns: 54px 1fr; gap: 10px; align-items: center; padding: 8px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; width: 100%; text-align: left; background: transparent }
+.it:hover { background: var(--raised) }
+.it.on { background: color-mix(in srgb, var(--green) 12%, transparent); border-color: color-mix(in srgb, var(--green) 40%, transparent) }
+.thumb { width: 54px; height: 38px; border-radius: 6px; overflow: hidden; display: grid; grid-template-rows: 5px 1fr 9px; border: 1px solid var(--line) }
+.thumb i { display: block }
+.it b { display: block; font-size: 13.5px; font-weight: 700 }
+.it small { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+.pill { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--green); color: var(--green-ink) }
+.pill.amber { background: var(--amber); color: #1a1200 }
+
+/* main */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0 }
+.top { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap }
+.tabs { display: flex; background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px }
+.tabs button { border: 0; background: transparent; padding: 5px 12px; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted) }
+.tabs button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.25) }
+.top .grow { flex: 1 }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden }
+.seg button { border: 0; background: var(--raised); padding: 6px 9px; cursor: pointer; color: var(--muted); display: grid; place-items: center }
+.seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--green) 18%, var(--raised)); color: var(--green) }
+.seg svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round }
+.btn.note-on { background: var(--amber); border-color: var(--amber); color: #1a1200 }
+
+.stage { flex: 1; position: relative; background: var(--stage); overflow: hidden; min-height: 0 }
+.flow { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 42% }
+.card { position: absolute; left: 50%; top: 44%; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.2,.8,.2,1), opacity .4s; cursor: pointer }
+.card .frame { position: relative; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 30px 60px rgba(0,0,0,.45); -webkit-box-reflect: below 6px linear-gradient(transparent 72%, rgba(255,255,255,.16)) }
+.card iframe { border: 0; transform-origin: 0 0; display: block; pointer-events: none; background: #fff }
+.card.center iframe { pointer-events: auto }
+.card .shade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .4s; pointer-events: none }
+.card:not(.center) .shade { opacity: .35 }
+.overlay { position: absolute; inset: 0; cursor: crosshair; display: none }
+.noting .card.center .overlay { display: block }
+.pin { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: var(--amber); color: #1a1200; font: 700 12px/24px var(--font); text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.4); pointer-events: auto; cursor: pointer; border: 0; padding: 0 }
+.pin.sent { background: #9aa6ad; color: #fff }
+.caption { position: absolute; left: 0; right: 0; bottom: 64px; text-align: center; pointer-events: none }
+.caption b { font-size: 16px }
+.caption span { color: var(--muted); display: block; font-size: 13px }
+.edge { position: absolute; top: 44%; transform: translateY(-50%); width: 44px; height: 64px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 85%, transparent); border-radius: 12px; cursor: pointer; display: grid; place-items: center; z-index: 300 }
+.edge svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.edge.prev { left: 14px } .edge.next { right: 14px }
+.edge:disabled { opacity: .3; cursor: default }
+
+.scrub { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--surface) }
+.scrub input[type=range] { flex: 1; accent-color: var(--green) }
+.scrub .when { color: var(--muted); font-size: 12.5px; min-width: 120px; text-align: right }
+.waiting { display: none; align-items: center; gap: 10px; padding: 8px 16px; background: color-mix(in srgb, var(--amber) 14%, var(--surface)); border-top: 1px solid color-mix(in srgb, var(--amber) 50%, var(--line)) }
+.waiting.show { display: flex }
+.waiting .grow { flex: 1 }
+
+/* panels (brief, design, plumbing, diff) */
+.panel { position: absolute; inset: 0; overflow: auto; padding: 22px; display: none; background: var(--bg) }
+.panel.show { display: block }
+.split { display: grid; grid-template-columns: minmax(260px, 420px) 1fr; gap: 24px; align-items: start; max-width: 1280px }
+.mini { position: sticky; top: 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #fff }
+.mini iframe { border: 0; transform-origin: 0 0; display: block; pointer-events: none }
+.doc { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-bottom: 16px }
+.doc h2 { margin: 0 0 4px; font-size: 18px }
+.doc h3 { margin: 18px 0 6px; font-size: 14px }
+.doc p { margin: 6px 0; max-width: 72ch }
+.doc .sub { color: var(--muted); font-size: 13px }
+.doc ul { margin: 6px 0; padding-left: 20px }
+.doc li { margin: 3px 0 }
+.prompt { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; white-space: pre-wrap; font-size: 13.5px; line-height: 1.6 }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; background: var(--raised); border: 1px solid var(--line); border-radius: 5px; padding: 0 4px; overflow-wrap: anywhere }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px }
+.sw { width: 96px }
+.sw i { display: block; height: 54px; border-radius: 10px; border: 1px solid var(--line) }
+.sw b { display: block; font-size: 12px; margin-top: 5px }
+.sw span { font-size: 11.5px; color: var(--muted) }
+.comp-frame { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff }
+.comp-frame iframe { border: 0; width: 100%; height: 560px; display: block }
+.table-wrap { overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font-size: 13px }
+th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+.inv { color: var(--red); font-weight: 700 }
+.badge-inv { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: color-mix(in srgb, var(--red) 20%, transparent); color: var(--red) }
+.diffbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px }
+select { background: var(--raised); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.pair .lab { font-weight: 700; margin-bottom: 6px; display: flex; gap: 8px; align-items: center }
+.box { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #fff; position: relative }
+.box iframe { border: 0; transform-origin: 0 0; display: block; pointer-events: none }
+.onion { position: relative; max-width: 860px }
+.changes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 18px }
+.chg { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px }
+.chg h3 { margin: 0 0 8px; font-size: 14px }
+.add { color: var(--green) } .rem { color: var(--red); text-decoration: line-through }
+.tokrow { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px }
+.tokrow i { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--line); display: inline-block }
+
+.pop { position: absolute; z-index: 500; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; width: 260px; box-shadow: 0 12px 30px rgba(0,0,0,.4) }
+.pop textarea { width: 100%; min-height: 64px; background: var(--raised); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; resize: vertical }
+.pop .row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px }
+.pop p { margin: 0 0 6px }
+
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; opacity: 0; transition: .3s; z-index: 900; display: flex; gap: 12px; align-items: center; font-weight: 600 }
+.toast.show { opacity: 1; transform: translateX(-50%) }
+.toast button { background: transparent; border: 0; color: var(--green); font-weight: 700; cursor: pointer }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr }
+  .rail { display: none }
+  .side { border-right: 0; border-bottom: 1px solid var(--line) }
+  .side header, .side .fly { display: none }
+  .list { display: flex; overflow-x: auto; padding: 8px; gap: 6px }
+  .it { grid-template-columns: 40px auto; min-width: 170px }
+  .thumb { width: 40px; height: 30px }
+  .split, .pair { grid-template-columns: 1fr }
+  .mini { position: static }
+  .top { padding: 8px 10px }
+  .edge { width: 36px; height: 52px }
+  .caption { bottom: 40px }
+  .tabs { overflow-x: auto; max-width: 100% }
+  .tabs button { flex: none }
+  .scrub .when, .scrub > span { display: none }
+  .top .grow { display: none }
+}
+@media (prefers-reduced-motion: reduce) { .card { transition: none } }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="FlexOS">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04120c" stroke-width="2.2" stroke-linecap="round"><path d="M7 8c2-3 8-3 10 0M6 13h12M8 17c2 2 6 2 8 0"/></svg></div>
+    <button title="Spaces"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button>
+    <button title="People"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.5c2.4.2 4.2 1.7 5 4.5"/></svg></button>
+    <button title="Library"><svg viewBox="0 0 24 24"><path d="M5 4v16M9 4v16M13.5 4.5l4.5 15"/></svg></button>
+    <button title="Boxes" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg></button>
+    <button title="Inbox"><svg viewBox="0 0 24 24"><path d="M4 13l2.5-7h11L20 13v6H4z"/><path d="M4 13h4.5l1 2h5l1-2H20"/></svg></button>
+    <button title="Connections"><svg viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M7 8h10v4a5 5 0 0 1-10 0zM12 17v4"/></svg></button>
+    <div class="spacer"></div>
+    <button title="App theme" id="appTheme"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  </nav>
+
+  <aside class="side">
+    <header>
+      <h1>Home page</h1>
+      <div class="crumb">Website · every version Flexi has made</div>
+    </header>
+    <div class="fly">
+      <button class="btn" id="flyBtn"><svg viewBox="0 0 24 24"><path d="M6 4l12 8-12 8z"/></svg>Fly through</button>
+      <button class="btn" id="toCurrent">Go to current</button>
+    </div>
+    <div class="list" id="list" role="listbox" aria-label="Versions"></div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div class="tabs" role="tablist" id="tabs">
+        <button data-view="preview" aria-pressed="true">Preview</button>
+        <button data-view="brief" aria-pressed="false">Brief</button>
+        <button data-view="design" aria-pressed="false">Design</button>
+        <button data-view="plumbing" aria-pressed="false">Plumbing</button>
+        <button data-view="diff" aria-pressed="false">Compare</button>
+      </div>
+      <div class="grow"></div>
+      <div class="seg" aria-label="Viewport">
+        <button id="vpLaptop" aria-pressed="true" title="Laptop"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg></button>
+        <button id="vpPhone" aria-pressed="false" title="Phone"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg></button>
+      </div>
+      <div class="seg" aria-label="Page theme">
+        <button id="thLight" aria-pressed="true" title="Light"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg></button>
+        <button id="thDark" aria-pressed="false" title="Dark"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+      </div>
+      <button class="btn" id="noteBtn"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Add notes</button>
+      <button class="btn primary" id="makeCurrent">Make current</button>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="flow" id="flow"></div>
+      <button class="edge prev" id="prev" aria-label="Previous version"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="edge next" id="next" aria-label="Next version"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+      <div class="caption" id="caption"></div>
+      <section class="panel" id="p-brief"></section>
+      <section class="panel" id="p-design"></section>
+      <section class="panel" id="p-plumbing"></section>
+      <section class="panel" id="p-diff"></section>
+    </div>
+
+    <div class="waiting" id="waiting">
+      <span id="waitingText"></span><span class="grow"></span>
+      <button class="btn" id="clearNotes">Discard</button>
+      <button class="btn primary" id="sendNotes">Send to Flexi</button>
+    </div>
+    <div class="scrub">
+      <span style="color:var(--muted);font-size:12.5px">Oldest</span>
+      <input type="range" id="scrub" min="0" max="5" step="1" value="3" aria-label="Scrub through versions">
+      <span style="color:var(--muted);font-size:12.5px">Newest</span>
+      <span class="when" id="when"></span>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"><span id="toastText"></span><button id="toastUndo" hidden>Undo</button></div>
+
+<script>
+(() => {
+/* ---------- the versions ---------- */
+const CAKES = [
+  { name: "Gran's Victoria sponge", price: 38, serves: '12', c: ['#f6e3c4', '#e7a0a8', '#fff7ee'] },
+  { name: 'Lemon drizzle tower', price: 42, serves: '16', c: ['#f9e79a', '#f4d35e', '#fffbe6'] },
+  { name: 'Chocolate fudge', price: 44, serves: '14', c: ['#6b3f2a', '#3d2216', '#a8735a'] },
+  { name: 'Coffee and walnut', price: 40, serves: '12', c: ['#c99a6b', '#8a5a36', '#efe0cc'] },
+  { name: 'Strawberry cloud', price: 48, serves: '18', c: ['#fde2e6', '#e8657d', '#ffffff'] },
+  { name: 'Carrot and cardamom', price: 52, serves: '20', c: ['#e9a25b', '#f3ece1', '#7d9b6c'] },
+];
+
+const V = [
+  { id: 'v1', title: 'First draft', date: '1 Oct, 10:12', hero: 'split', sections: ['nav','hero','cakes','visit','footer'],
+    fonts: ['Fraunces', 'DM Sans'], radius: 14,
+    pal: { light: { bg:'#fbf7f0', surface:'#ffffff', ink:'#2a211b', muted:'#7a6a5c', accent:'#2f6b5a', accentInk:'#ffffff', soft:'#f2e4d6' },
+           dark:  { bg:'#1c1714', surface:'#26201b', ink:'#f5ece2', muted:'#b8a796', accent:'#5fb59a', accentInk:'#0e1f19', soft:'#332a23' } },
+    headline: 'Birthday cakes, baked the way Gran taught us.',
+    sub: 'Six signature cakes, made to order in our Bristol kitchen.',
+    reviews: true,
+    prompt: 'Make the first home page for Crumb & Co from the brief: a family bakery in Bristol, Gran\'s recipes, a warm Bettys feel, six signature birthday cakes made to order. Use the project\'s design system. Show the cakes and how to visit.',
+    built: ['.flexos/docs/flexboxes/website/03-pages/home.md', '.flexos/docs/flexboxes/website/06-design.md'],
+    changes: ['First version, drawn from the page spec.'],
+    components: ['Nav', 'Hero (split)', 'Cake card', 'Visit block', 'Footer'],
+  },
+  { id: 'v2', title: "Gran's story first", date: '2 Oct, 15:40', hero: 'story', sections: ['nav','story','cakes','visit','footer'],
+    fonts: ['Fraunces', 'DM Sans'], radius: 14,
+    pal: { light: { bg:'#fbf7f0', surface:'#ffffff', ink:'#2a211b', muted:'#7a6a5c', accent:'#2f6b5a', accentInk:'#ffffff', soft:'#f2e4d6' },
+           dark:  { bg:'#1c1714', surface:'#26201b', ink:'#f5ece2', muted:'#b8a796', accent:'#5fb59a', accentInk:'#0e1f19', soft:'#332a23' } },
+    headline: "Gran's recipes, still in her handwriting.",
+    sub: 'Every cake we bake starts on one of her cards. Six of them are your birthday cakes.',
+    prompt: 'Lead with Gran\'s story instead of a generic hero. Remove the review stars: there are no reviews yet. Keep the cakes and visit sections.',
+    built: ['.flexos/docs/flexboxes/website/03-pages/home.md', '.flexos/docs/flexboxes/website/01-vision.md'],
+    changes: ['The story leads the page.', 'Review stars removed (nothing backed them).'],
+    components: ['Nav', 'Story block', 'Recipe card', 'Cake card', 'Visit block', 'Footer'],
+  },
+  { id: 'v3', title: 'Order in three steps', date: '3 Oct, 11:05', hero: 'story', sections: ['nav','story','cakes','order','visit','footer'],
+    fonts: ['Fraunces', 'DM Sans'], radius: 14,
+    pal: { light: { bg:'#fbf7f0', surface:'#ffffff', ink:'#2a211b', muted:'#7a6a5c', accent:'#2f6b5a', accentInk:'#ffffff', soft:'#f2e4d6' },
+           dark:  { bg:'#1c1714', surface:'#26201b', ink:'#f5ece2', muted:'#b8a796', accent:'#5fb59a', accentInk:'#0e1f19', soft:'#332a23' } },
+    headline: "Gran's recipes, still in her handwriting.",
+    sub: 'Every cake we bake starts on one of her cards. Six of them are your birthday cakes.',
+    prompt: 'Add ordering: pick a cake, pick a size, add a message for the top. Orders go to the Neon orders table described in connections/neon. Cakes and prices come from the cakes table, not the page.',
+    built: ['.flexos/docs/flexboxes/website/03-pages/home.md', '.flexos/docs/flexboxes/website/05-flows.md', '.flexos/connections/neon/index.md'],
+    changes: ['Order form added, in three steps.', 'Cakes and prices now read from Neon.'],
+    components: ['Nav', 'Story block', 'Recipe card', 'Cake card', 'Order steps', 'Visit block', 'Footer'],
+  },
+  { id: 'v4', title: 'Heritage green', date: '4 Oct, 09:30', hero: 'story', sections: ['nav','story','cakes','order','visit','footer'],
+    fonts: ['Cormorant Garamond', 'Karla'], radius: 6,
+    pal: { light: { bg:'#f3efe6', surface:'#fbf9f4', ink:'#1f3a2f', muted:'#5f6f62', accent:'#1f3a2f', accentInk:'#f3efe6', soft:'#e6dcc8', gold:'#b8893b' },
+           dark:  { bg:'#14231c', surface:'#1b2e25', ink:'#efe8d8', muted:'#a9b5a8', accent:'#d2a65a', accentInk:'#14231c', soft:'#243a2f', gold:'#d2a65a' } },
+    headline: "Gran's recipes, still in her handwriting.",
+    sub: 'Every cake we bake starts on one of her cards. Six of them are your birthday cakes.',
+    prompt: 'Make it feel like a tearoom, not a startup: bottle green and gold, a classic serif, smaller corners, more air. Nothing else changes.',
+    built: ['.flexos/docs/flexboxes/website/06-design.md'],
+    changes: ['New palette: bottle green and gold.', 'Serif changed to Cormorant Garamond, body to Karla.', 'Corners from 14px to 6px.'],
+    components: ['Nav', 'Story block', 'Recipe card', 'Cake card', 'Order steps', 'Visit block', 'Footer'],
+  },
+  { id: 'v5', title: 'Phone-first ordering', date: '5 Oct, 16:22', hero: 'story', sections: ['nav','story','cakes','order','visit','footer'], sticky: true,
+    fonts: ['Cormorant Garamond', 'Karla'], radius: 6,
+    pal: { light: { bg:'#f3efe6', surface:'#fbf9f4', ink:'#1f3a2f', muted:'#5f6f62', accent:'#1f3a2f', accentInk:'#f3efe6', soft:'#e6dcc8', gold:'#b8893b' },
+           dark:  { bg:'#14231c', surface:'#1b2e25', ink:'#efe8d8', muted:'#a9b5a8', accent:'#d2a65a', accentInk:'#14231c', soft:'#243a2f', gold:'#d2a65a' } },
+    headline: "Gran's recipes, still in her handwriting.",
+    sub: 'Every cake we bake starts on one of her cards. Six of them are your birthday cakes.',
+    prompt: 'Most orders will come from phones. Keep an "Order a cake" button stuck to the bottom of the screen on a phone, and show the opening hours next to the address.',
+    built: ['.flexos/docs/flexboxes/website/03-pages/home.md', '.flexos/docs/flexboxes/website/05-flows.md'],
+    changes: ['Sticky "Order a cake" bar on phones.', 'Opening hours beside the address.'],
+    components: ['Nav', 'Story block', 'Recipe card', 'Cake card', 'Order steps', 'Visit block', 'Sticky order bar', 'Footer'],
+  },
+  { id: 'v6', title: 'Bolder, sweeter', date: '6 Oct, 08:47', hero: 'big', sections: ['nav','hero','cakes','order','footer'], sticky: true,
+    fonts: ['Bricolage Grotesque', 'Karla'], radius: 22,
+    pal: { light: { bg:'#fde8ec', surface:'#fff6f8', ink:'#3b1d2a', muted:'#86606f', accent:'#d63c71', accentInk:'#ffffff', soft:'#f8cfd9' },
+           dark:  { bg:'#24121a', surface:'#301a24', ink:'#fde8ec', muted:'#c49aab', accent:'#ff6f9f', accentInk:'#24121a', soft:'#3d2230' } },
+    headline: 'Cake for the big day. Made by our family for yours.',
+    sub: 'Six birthday cakes, baked to order in Bristol.',
+    countdown: true,
+    prompt: 'An experiment: what if it felt playful instead of heritage? Bigger type, pink, rounder. Try a "next free collection slot" line in the hero.',
+    built: ['.flexos/docs/flexboxes/website/06-design.md'],
+    changes: ['Playful palette and Bricolage Grotesque.', 'Story section dropped for a big hero.', '"Next free slot" line added to the hero.'],
+    components: ['Nav', 'Hero (big)', 'Cake card', 'Order steps', 'Sticky order bar', 'Footer'],
+  },
+];
+
+/* plumbing: what each visible thing shows, where it comes from */
+function plumbing(v) {
+  const rows = [
+    ['Name and logo', '.flexos/docs/index.md (the project)', 'Flexi, from talking', 'When the name changes'],
+    ['Headline and intro', '.flexos/docs/flexboxes/website/03-pages/home.md', 'Flexi, from talking', 'When the spec changes'],
+  ];
+  if (v.reviews) rows.push(['"4.9 from 212 reviews"', null, null, null]);
+  if (v.sections.includes('story')) rows.push(["Gran's story and recipe card", '.flexos/docs/flexboxes/website/01-vision.md', 'Flexi, from talking', 'When the vision changes']);
+  if (+v.id.slice(1) < 3) rows.push(['Six cakes and prices', 'Written into the page itself', 'Flexi, at build', 'Never: goes stale']);
+  else rows.push(['Six cakes and prices', 'Neon: cakes table (.flexos/connections/neon/index.md)', 'The bakery, in its admin', 'On each visit']);
+  if (v.sections.includes('order')) rows.push(['Order form', 'Neon: orders table (.flexos/connections/neon/index.md)', 'The customer', 'On submit']);
+  if (v.sections.includes('visit')) rows.push(['Address' + (+v.id.slice(1) >= 5 ? ' and opening hours' : ''), '.flexos/docs/index.md (the project)', 'Flexi, from talking', 'When it changes']);
+  if (v.sticky) rows.push(['Sticky "Order a cake" bar', 'Page code, phone layout only', 'The build', 'Always']);
+  if (v.countdown) rows.push(['"Next free slot: Saturday"', null, null, null]);
+  return rows.map(r => ({ shows: r[0], source: r[1], writer: r[2], when: r[3], invented: r[1] === null || r[3] === 'Never: goes stale' }));
+}
+
+/* ---------- drawing a version as a page ---------- */
+function cakeSVG(c, big) {
+  const [cake, icing, top] = c;
+  return `<svg viewBox="0 0 120 110" ${big ? 'width="100%"' : ''} aria-hidden="true">
+    <ellipse cx="60" cy="100" rx="52" ry="7" fill="rgba(0,0,0,.12)"/>
+    <rect x="16" y="58" width="88" height="40" rx="6" fill="${cake}"/>
+    <rect x="30" y="28" width="60" height="32" rx="6" fill="${cake}"/>
+    <path d="M30 34 q0-6 6-6 h48 q6 0 6 6 v4 q-4 6-8 0 q-4 6-8 0 q-4 6-8 0 q-4 6-8 0 q-4 6-8 0 q-4 6-8 0 q-4 6-8 0z" fill="${icing}"/>
+    <path d="M16 64 q0-6 6-6 h76 q6 0 6 6 v5 q-5 7-10 0 q-5 7-10 0 q-5 7-10 0 q-5 7-10 0 q-5 7-10 0 q-5 7-10 0 q-5 7-10 0 q-5 7-10 0 q-5 7-6 0z" fill="${icing}"/>
+    <rect x="57" y="12" width="6" height="16" rx="2" fill="${top}"/>
+    <path d="M60 3 q4 5 0 9 q-4-4 0-9z" fill="#f4b740"/>
+  </svg>`;
+}
+
+function fontLink(v) {
+  const fam = v.fonts.map(f => 'family=' + f.replace(/ /g, '+') + ':wght@400;600;700').join('&');
+  return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fam}&display=swap">`;
+}
+
+function pageCSS(v, mode) {
+  const p = v.pal[mode];
+  const n = +v.id.slice(1);
+  return `
+  :root{--bg:${p.bg};--surface:${p.surface};--ink:${p.ink};--muted:${p.muted};--accent:${p.accent};--accent-ink:${p.accentInk};--soft:${p.soft};--gold:${p.gold || p.accent};--r:${v.radius}px;
+    --display:'${v.fonts[0]}',Georgia,serif;--body:'${v.fonts[1]}',system-ui,sans-serif}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 var(--body)}
+  a{color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 40px}
+  nav{display:flex;align-items:center;gap:28px;padding:22px 0}
+  nav .brand{font:700 26px/1 var(--display);letter-spacing:${n >= 4 && n < 6 ? '.02em' : '-.01em'}}
+  nav .links{display:flex;gap:22px;margin-left:auto;font-size:15px;color:var(--muted)}
+  .b{display:inline-block;background:var(--accent);color:var(--accent-ink);padding:12px 22px;border-radius:var(--r);font-weight:600;text-decoration:none;font-size:15.5px;border:0}
+  .b.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+  h1,h2,h3{font-family:var(--display);font-weight:${n >= 4 && n < 6 ? 600 : 700};margin:0;line-height:1.08}
+  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:56px 0 72px}
+  .hero h1{font-size:62px;letter-spacing:-.015em}
+  .hero p{font-size:20px;color:var(--muted);max-width:30ch;margin:20px 0 28px}
+  .hero .stars{font-size:14px;color:var(--muted);margin-top:18px}
+  .hero.big{grid-template-columns:1fr;text-align:left;padding:70px 0 80px}
+  .hero.big h1{font-size:96px;max-width:12ch;letter-spacing:-.03em}
+  .hero.big .slot{display:inline-block;margin-top:22px;background:var(--surface);padding:8px 14px;border-radius:99px;font-size:15px}
+  .art{background:var(--soft);border-radius:calc(var(--r)*2);padding:30px}
+  .story{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;padding:60px 0 80px}
+  .story h1{font-size:${n >= 4 && n < 6 ? 72 : 60}px;letter-spacing:-.01em}
+  .story p{font-size:19px;color:var(--muted);max-width:34ch;margin:20px 0 28px}
+  .card-r{background:var(--surface);border-radius:var(--r);padding:28px 30px;box-shadow:0 18px 40px rgba(0,0,0,.08);transform:rotate(-2deg);
+    background-image:repeating-linear-gradient(transparent 0 31px, ${n >= 4 && n < 6 ? 'rgba(31,58,47,.12)' : 'rgba(47,107,90,.12)'} 31px 32px);border-top:6px solid var(--gold)}
+  .card-r h3{font-size:30px;font-style:italic;margin-bottom:10px}
+  .card-r li{font-size:17px;line-height:32px;list-style:none}
+  .card-r ul{padding:0;margin:0}
+  section.block{padding:64px 0;border-top:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}
+  section.block h2{font-size:44px;margin-bottom:8px}
+  section.block > .wrap > p{color:var(--muted);margin:0 0 32px}
+  .cakes{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .cake{background:var(--surface);border-radius:var(--r);padding:18px 18px 20px}
+  .cake .pic{background:var(--soft);border-radius:calc(var(--r)*.7);padding:14px 22px;margin-bottom:14px}
+  .cake h3{font-size:22px}
+  .cake .meta{color:var(--muted);font-size:14.5px;margin-top:4px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .step{background:var(--surface);border-radius:var(--r);padding:22px}
+  .step .n{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;margin-bottom:12px}
+  .step h3{font-size:22px;margin-bottom:10px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1.5px solid color-mix(in srgb,var(--ink) 25%,transparent);border-radius:99px;padding:5px 12px;font-size:14px}
+  .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .field{border:1.5px solid color-mix(in srgb,var(--ink) 25%,transparent);border-radius:calc(var(--r)*.6);padding:10px 12px;color:var(--muted);font-size:15px}
+  .visit{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+  .visit h3{font-size:24px;margin-bottom:6px}
+  footer{padding:36px 0 60px;color:var(--muted);font-size:14px;border-top:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}
+  .sticky{display:none}
+  @media (max-width:600px){
+    .wrap{padding:0 20px} nav .links{display:none}
+    .hero,.story{grid-template-columns:1fr;gap:28px;padding:28px 0 44px}
+    .hero h1,.story h1{font-size:40px} .hero.big h1{font-size:54px}
+    .hero p,.story p{font-size:17px}
+    .cakes,.steps,.visit{grid-template-columns:1fr} section.block h2{font-size:32px}
+    ${v.sticky ? '.sticky{display:block;position:fixed;left:16px;right:16px;bottom:16px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25)} footer{padding-bottom:110px}' : ''}
+  }`;
+}
+
+function sec(v, s) {
+  const n = +v.id.slice(1);
+  if (s === 'nav') return `<div class="wrap"><nav><span class="brand">Crumb &amp; Co</span><span class="links"><a>Cakes</a><a>Our story</a><a>Visit</a></span><a class="b">Order a cake</a></nav></div>`;
+  if (s === 'hero') {
+    const big = v.hero === 'big';
+    return `<div class="wrap"><header class="hero ${big ? 'big' : ''}"><div><h1>${v.headline}</h1><p>${v.sub}</p>
+      <a class="b">Order a cake</a> <a class="b ghost">See the cakes</a>
+      ${v.reviews ? '<div class="stars">★★★★★ 4.9 from 212 reviews</div>' : ''}
+      ${v.countdown ? '<div><span class="slot">Next free collection slot: Saturday</span></div>' : ''}</div>
+      ${big ? '' : `<div class="art">${cakeSVG(CAKES[4].c, true)}</div>`}</header></div>`;
+  }
+  if (s === 'story') return `<div class="wrap"><header class="story"><div><h1>${v.headline}</h1><p>${v.sub}</p><a class="b">${n >= 3 ? 'Order a cake' : 'See the cakes'}</a></div>
+      <div class="card-r"><h3>Victoria sponge</h3><ul><li>8 oz butter, soft</li><li>8 oz caster sugar</li><li>4 eggs, one at a time</li><li>8 oz self-raising flour</li><li>Jam from the allotment</li></ul></div></header></div>`;
+  if (s === 'cakes') return `<section class="block"><div class="wrap"><h2>The six birthday cakes</h2><p>Each one made to order. Tell us the day and we'll bake it the morning before.</p>
+      <div class="cakes">${CAKES.map(c => `<div class="cake"><div class="pic">${cakeSVG(c.c, true)}</div><h3>${c.name}</h3><div class="meta">From £${c.price} · serves ${c.serves}</div></div>`).join('')}</div></div></section>`;
+  if (s === 'order') return `<section class="block"><div class="wrap"><h2>Order in three steps</h2><p>We'll confirm by email within the day.</p><div class="steps">
+      <div class="step"><div class="n">1</div><h3>Choose a cake</h3><div class="chips"><span class="chip on">Victoria sponge</span><span class="chip">Lemon drizzle</span><span class="chip">Chocolate fudge</span></div></div>
+      <div class="step"><div class="n">2</div><h3>Pick a size</h3><div class="chips"><span class="chip">6 inch</span><span class="chip on">8 inch</span><span class="chip">10 inch</span></div></div>
+      <div class="step"><div class="n">3</div><h3>Add a message</h3><div class="field">Happy 70th, Grandad</div><div style="margin-top:14px"><a class="b">Place order</a></div></div>
+      </div></div></section>`;
+  if (s === 'visit') return `<section class="block"><div class="wrap"><div class="visit"><div><h3>Collect from the shop</h3><p>14 Gloucester Road, Bristol</p></div>
+      ${n >= 5 ? '<div><h3>Opening hours</h3><p>Tuesday to Saturday, 8 till 4</p></div>' : '<div><h3>Questions?</h3><p>hello@crumbandco.co.uk</p></div>'}</div></div></section>`;
+  if (s === 'footer') return `<div class="wrap"><footer>Crumb &amp; Co, a family bakery in Bristol since 1987.</footer></div>${v.sticky ? '<a class="b sticky">Order a cake</a>' : ''}`;
+  return '';
+}
+
+function pageHTML(v, mode) {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${fontLink(v)}<style>${pageCSS(v, mode)}</style></head>
+  <body>${v.sections.map(s => sec(v, s)).join('')}</body></html>`;
+}
+
+function sheetHTML(v, mode) {
+  return `<!doctype html><html><head><meta charset="utf-8">${fontLink(v)}<style>${pageCSS(v, mode)}
+  body{padding:28px} .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:26px} .lbl{font-size:13px;color:var(--muted);margin:0 0 10px}
+  .spec h1{font-size:54px} .spec p{margin:6px 0}</style></head><body>
+  <div class="spec"><p class="lbl">Display, ${v.fonts[0]}</p><h1>Crumb &amp; Co</h1><p class="lbl" style="margin-top:14px">Body, ${v.fonts[1]}</p><p style="max-width:52ch">Every cake we bake starts on one of Gran's cards. Tell us the day and we'll bake it the morning before.</p></div>
+  <p class="lbl" style="margin-top:26px">Buttons</p><div class="row"><a class="b">Order a cake</a><a class="b ghost">See the cakes</a></div>
+  <p class="lbl">Cake card</p><div class="row"><div class="cake" style="width:250px"><div class="pic">${cakeSVG(CAKES[0].c, true)}</div><h3>${CAKES[0].name}</h3><div class="meta">From £38 · serves 12</div></div>
+  ${v.sections.includes('order') ? `<div class="step" style="width:280px"><div class="n">2</div><h3>Pick a size</h3><div class="chips"><span class="chip">6 inch</span><span class="chip on">8 inch</span><span class="chip">10 inch</span></div></div>` : ''}</div>
+  </body></html>`;
+}
+
+/* ---------- state ---------- */
+const state = { i: 3, current: 3, view: 'preview', vp: 'laptop', theme: 'light', noting: false, notes: {}, diffA: 3, diffMode: 'side', onion: 50 };
+const SEED = {
+  v1: [{ x: 30, y: 30, text: 'Too generic. Lead with Gran, not a stock hero.', sent: true }, { x: 22, y: 64, text: 'We have no reviews yet. Where did 4.9 come from?', sent: true }],
+  v2: [{ x: 50, y: 85, text: 'People need to be able to order from here.', sent: true }],
+  v3: [{ x: 35, y: 18, text: 'Feels like a startup. More tearoom, please.', sent: true }],
+};
+try { const s = JSON.parse(localStorage.getItem('iterflow-notes') || 'null'); state.notes = s || SEED; } catch { state.notes = SEED }
+function saveNotes() { try { localStorage.setItem('iterflow-notes', JSON.stringify(state.notes)) } catch {} }
+const VP = { laptop: [1280, 800], phone: [390, 844] };
+
+const $ = (s) => document.querySelector(s);
+const flow = $('#flow'), stage = $('#stage');
+
+/* ---------- side list ---------- */
+function renderList() {
+  const list = $('#list');
+  list.innerHTML = '';
+  [...V.keys()].reverse().forEach(k => {
+    const v = V[k], p = v.pal.light;
+    const notes = (state.notes[v.id] || []).length;
+    const b = document.createElement('button');
+    b.className = 'it' + (k === state.i ? ' on' : '');
+    b.setAttribute('role', 'option'); b.setAttribute('aria-selected', k === state.i);
+    b.innerHTML = `<span class="thumb" style="background:${p.bg}"><i style="background:${p.accent}"></i><i style="background:linear-gradient(90deg, ${p.soft} 0 45%, transparent 45%)"></i><i style="background:${p.surface}"></i></span>
+      <span><b>${v.id} · ${v.title}</b><small>${v.date}${k === state.current ? ' <span class="pill">Current</span>' : ''}${notes ? ` <span>${notes} note${notes > 1 ? 's' : ''}</span>` : ''}</small></span>`;
+    b.onclick = () => go(k);
+    list.appendChild(b);
+  });
+}
+
+/* ---------- coverflow ---------- */
+let cards = [];
+function buildFlow() {
+  flow.innerHTML = '';
+  cards = V.map((v, k) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="frame"><iframe title="${v.id} preview" loading="lazy"></iframe><div class="shade"></div><div class="overlay"></div></div>`;
+    card.querySelector('iframe').srcdoc = pageHTML(v, state.theme);
+    card.addEventListener('click', (e) => { if (k !== state.i) { e.stopPropagation(); go(k) } });
+    card.querySelector('.overlay').addEventListener('click', (e) => addNoteAt(e, k));
+    flow.appendChild(card);
+    return card;
+  });
+  layout();
+}
+function refreshFrames() { cards.forEach((c, k) => c.querySelector('iframe').srcdoc = pageHTML(V[k], state.theme)); }
+
+function sizes() {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const [vw, vh] = VP[state.vp];
+  const maxH = H * 0.66, maxW = W * (state.vp === 'phone' ? 0.3 : 0.6);
+  const s = Math.min(maxW / vw, maxH / vh);
+  return { s, w: vw * s, h: vh * s, vw, vh, W };
+}
+function layout() {
+  const { s, w, h, vw, vh, W } = sizes();
+  const gap = Math.max(w * (state.vp === 'phone' ? 0.62 : 0.34), 70);
+  cards.forEach((card, k) => {
+    const off = k - state.i, a = Math.abs(off);
+    const frame = card.querySelector('.frame'), ifr = card.querySelector('iframe');
+    frame.style.width = w + 'px'; frame.style.height = h + 'px';
+    ifr.style.width = vw + 'px'; ifr.style.height = vh + 'px'; ifr.style.transform = `scale(${s})`;
+    const x = off === 0 ? 0 : Math.sign(off) * (w * 0.55 + (a - 1) * gap * 0.55 + 40);
+    const rot = off === 0 ? 0 : -Math.sign(off) * 52;
+    const z = off === 0 ? 0 : -240 - a * 40;
+    card.style.transform = `translate(-50%, -50%) translateX(${x}px) translateZ(${z}px) rotateY(${rot}deg)`;
+    card.style.zIndex = 100 - a;
+    card.style.opacity = a > 3 ? 0 : 1;
+    card.classList.toggle('center', off === 0);
+    renderPins(card, k);
+  });
+  const v = V[state.i];
+  $('#caption').innerHTML = `<b>${v.id} · ${v.title}</b><span>${v.date}${state.i === state.current ? ' · current, live on the site' : ''}</span>`;
+  $('#caption').style.bottom = Math.max(14, (stage.clientHeight * 0.44 - h / 2) - 52) + 'px';
+  $('#prev').disabled = state.i === 0; $('#next').disabled = state.i === V.length - 1;
+}
+
+/* ---------- notes ---------- */
+function renderPins(card, k) {
+  const ov = card.querySelector('.overlay'), frame = card.querySelector('.frame');
+  frame.querySelectorAll('.pin').forEach(p => p.remove());
+  (state.notes[V[k].id] || []).forEach((n, j) => {
+    const p = document.createElement('button');
+    p.className = 'pin' + (n.sent ? ' sent' : '');
+    p.textContent = j + 1; p.title = n.text;
+    p.style.left = n.x + '%'; p.style.top = n.y + '%';
+    p.onclick = (e) => { e.stopPropagation(); showNote(e, k, j) };
+    frame.appendChild(p);
+  });
+}
+let pop;
+function closePop() { if (pop) { pop.remove(); pop = null } }
+function placePop(e) {
+  const r = stage.getBoundingClientRect();
+  pop.style.left = Math.min(e.clientX - r.left + 8, r.width - 276) + 'px';
+  pop.style.top = Math.min(e.clientY - r.top + 8, r.height - 170) + 'px';
+}
+function addNoteAt(e, k) {
+  e.stopPropagation(); closePop();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100, y = ((e.clientY - rect.top) / rect.height) * 100;
+  pop = document.createElement('div'); pop.className = 'pop';
+  pop.innerHTML = `<p><b>Note on ${V[k].id}</b></p><textarea placeholder="What should change here?"></textarea><div class="row"><button class="btn" data-a="x">Cancel</button><button class="btn primary" data-a="ok">Add note</button></div>`;
+  stage.appendChild(pop); placePop(e);
+  const ta = pop.querySelector('textarea'); ta.focus();
+  const ok = () => { const t = ta.value.trim(); if (!t) return closePop();
+    (state.notes[V[k].id] ||= []).push({ x, y, text: t, sent: false }); saveNotes(); closePop(); layout(); renderList(); renderWaiting() };
+  pop.querySelector('[data-a=ok]').onclick = ok;
+  pop.querySelector('[data-a=x]').onclick = closePop;
+  ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); ok() } if (ev.key === 'Escape') closePop() });
+}
+function showNote(e, k, j) {
+  closePop();
+  const n = state.notes[V[k].id][j];
+  pop = document.createElement('div'); pop.className = 'pop';
+  pop.innerHTML = `<p><b>Note ${j + 1} on ${V[k].id}</b> <span style="color:var(--muted)">${n.sent ? 'sent to Flexi' : 'waiting'}</span></p><p>${n.text.replace(/</g, '&lt;')}</p>
+    <div class="row">${n.sent ? '' : '<button class="btn" data-a="del">Delete</button>'}<button class="btn" data-a="x">Close</button></div>`;
+  stage.appendChild(pop); placePop(e);
+  pop.querySelector('[data-a=x]').onclick = closePop;
+  const d = pop.querySelector('[data-a=del]');
+  if (d) d.onclick = () => { state.notes[V[k].id].splice(j, 1); saveNotes(); closePop(); layout(); renderList(); renderWaiting() };
+}
+function waitingNotes() { let c = 0, on = new Set(); for (const id in state.notes) state.notes[id].forEach(n => { if (!n.sent) { c++; on.add(id) } }); return { c, on: [...on] } }
+function renderWaiting() {
+  const { c, on } = waitingNotes();
+  $('#waiting').classList.toggle('show', c > 0);
+  $('#waitingText').textContent = c ? `${c} note${c > 1 ? 's' : ''} waiting on ${on.join(', ')}. They go to Flexi together.` : '';
+}
+$('#sendNotes').onclick = () => {
+  const { c } = waitingNotes();
+  for (const id in state.notes) state.notes[id].forEach(n => n.sent = true);
+  saveNotes(); layout(); renderWaiting(); renderList();
+  toast(`Sent ${c} note${c > 1 ? 's' : ''} to Flexi. He'll answer in the Home page space.`);
+};
+$('#clearNotes').onclick = () => { for (const id in state.notes) state.notes[id] = state.notes[id].filter(n => n.sent); saveNotes(); layout(); renderWaiting(); renderList() };
+$('#noteBtn').onclick = () => {
+  state.noting = !state.noting;
+  if (state.noting && state.view !== 'preview') setView('preview');
+  stage.classList.toggle('noting', state.noting);
+  $('#noteBtn').classList.toggle('note-on', state.noting);
+  $('#noteBtn').lastChild.textContent = state.noting ? 'Done' : 'Add notes';
+  closePop();
+};
+
+/* ---------- panels ---------- */
+function miniFrame(v, width) {
+  const [vw, vh] = VP[state.vp]; const s = width / vw;
+  return `<div class="mini" style="width:${width}px;height:${Math.min(vh, state.vp === 'phone' ? vh : 800) * s}px"><iframe style="width:${vw}px;height:${vh}px;transform:scale(${s})" srcdoc="${esc(pageHTML(v, state.theme))}"></iframe></div>`;
+}
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;') }
+function prevNotes(k) { return k > 0 ? (state.notes[V[k - 1].id] || []) : [] }
+
+function renderBrief() {
+  const v = V[state.i], k = state.i, pn = prevNotes(k);
+  $('#p-brief').innerHTML = `<div class="split"><div>${miniFrame(v, state.vp === 'phone' ? 260 : 400)}</div><div>
+    <div class="doc"><h2>${v.id} · ${v.title}</h2><div class="sub">Made by Flexi, ${v.date}</div>
+      <h3>The briefing he worked from</h3><div class="prompt">${v.prompt}</div>
+      <h3>Built from</h3><ul>${v.built.map(b => `<li><code>${b}</code></li>`).join('')}</ul>
+      <h3>What changed${k ? ' since ' + V[k - 1].id : ''}</h3><ul>${v.changes.map(c => `<li>${c}</li>`).join('')}</ul>
+      ${pn.length ? `<h3>Notes that led here</h3><ul>${pn.map(n => `<li>${n.text}</li>`).join('')}</ul>` : ''}
+    </div></div></div>`;
+}
+function renderDesign() {
+  const v = V[state.i], p = v.pal[state.theme];
+  const names = { bg: 'Background', surface: 'Surface', ink: 'Ink', muted: 'Muted', accent: 'Accent', soft: 'Soft', gold: 'Gold' };
+  $('#p-design').innerHTML = `<div class="doc"><h2>Design system in ${v.id}</h2><div class="sub">${state.theme === 'light' ? 'Light' : 'Dark'} palette, from <code>06-design.md</code></div>
+    <h3>Colour</h3><div class="swatches">${Object.keys(names).filter(n => p[n]).map(n => `<div class="sw"><i style="background:${p[n]}"></i><b>${names[n]}</b><span>${p[n]}</span></div>`).join('')}</div>
+    <h3>Type and shape</h3><p>${v.fonts[0]} for display, ${v.fonts[1]} for body. Corners ${v.radius}px.</p>
+    <h3>Components used</h3><p>${v.components.join(', ')}.</p></div>
+    <div class="comp-frame"><iframe title="Components" srcdoc="${esc(sheetHTML(v, state.theme))}"></iframe></div>`;
+}
+function renderPlumbing() {
+  const v = V[state.i], rows = plumbing(v), inv = rows.filter(r => r.invented).length;
+  $('#p-plumbing').innerHTML = `<div class="split"><div>${miniFrame(v, state.vp === 'phone' ? 260 : 400)}</div><div><div class="doc">
+    <h2>Plumbing in ${v.id}</h2><div class="sub">Everything on the page and where it comes from. ${inv ? `<span class="badge-inv">${inv} invented</span>` : 'Nothing invented.'}</div>
+    <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>What it shows</th><th>Comes from</th><th>Who writes it</th><th>When</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td>${r.shows}</td><td>${r.source ? (r.source.startsWith('.') || r.source.includes('.flexos') ? r.source.replace(/(\.flexos\/[^\s)]+)/g, '<code>$1</code>') : r.source) : '<span class="inv">INVENTED: no source</span>'}</td>
+      <td>${r.writer || '—'}</td><td>${r.invented && r.when ? `<span class="inv">${r.when}</span>` : (r.when || '—')}</td></tr>`).join('')}
+    </tbody></table></div></div></div></div>`;
+}
+function renderDiff() {
+  const a = V[state.diffA], b = V[state.i];
+  const box = (v, w) => { const [vw, vh] = VP[state.vp]; const s = w / vw; const h = Math.min(vh, 800) * s;
+    return `<div class="box" style="width:${w}px;height:${h}px"><iframe style="width:${vw}px;height:${vh}px;transform:scale(${s})" srcdoc="${esc(pageHTML(v, state.theme))}"></iframe></div>` };
+  const W = Math.min(stage.clientWidth - 60, 1240);
+  const half = state.vp === 'phone' ? 260 : Math.floor((W - 16) / 2);
+  const one = state.vp === 'phone' ? 300 : Math.min(W, 860);
+  const secA = new Set(a.sections), secB = new Set(b.sections);
+  const added = b.sections.filter(s => !secA.has(s)), removed = a.sections.filter(s => !secB.has(s));
+  const names = { nav: 'Nav', hero: 'Hero', story: 'Story', cakes: 'Cakes', order: 'Order steps', visit: 'Visit', footer: 'Footer' };
+  const pa = a.pal[state.theme], pb = b.pal[state.theme];
+  const tok = ['bg', 'surface', 'ink', 'accent', 'soft'].filter(t => pa[t] !== pb[t]);
+  const ca = new Set(a.components), cb = new Set(b.components);
+  const plA = plumbing(a).filter(r => r.invented).length, plB = plumbing(b).filter(r => r.invented).length;
+  const lo = Math.min(state.diffA, state.i), hi = Math.max(state.diffA, state.i);
+  const between = V.slice(lo + 1, hi + 1);
+  $('#p-diff').innerHTML = `
+    <div class="diffbar"><span>Compare</span><select id="diffA">${V.map((v, k) => `<option value="${k}" ${k === state.diffA ? 'selected' : ''}>${v.id} · ${v.title}${k === state.current ? ' (current)' : ''}</option>`).join('')}</select>
+      <span>with</span><b>${b.id} · ${b.title}</b><span style="flex:1"></span>
+      <div class="tabs"><button data-dm="side" aria-pressed="${state.diffMode === 'side'}">Side by side</button><button data-dm="onion" aria-pressed="${state.diffMode === 'onion'}">Overlay</button></div></div>
+    ${state.diffMode === 'side'
+      ? `<div class="pair"><div><div class="lab">${a.id}${state.diffA === state.current ? ' <span class="pill">Current</span>' : ''}</div>${box(a, half)}</div><div><div class="lab">${b.id}${state.i === state.current ? ' <span class="pill">Current</span>' : ''}</div>${box(b, half)}</div></div>`
+      : `<div class="diffbar"><span>${a.id}</span><input type="range" id="onion" min="0" max="100" value="${state.onion}" style="width:240px;accent-color:var(--green)"><span>${b.id}</span></div>
+         <div class="onion" style="width:${one}px">${box(a, one)}<div class="layer" style="position:absolute;inset:0;opacity:${state.onion / 100}">${box(b, one)}</div></div>`}
+    <div class="changes">
+      <div class="chg"><h3>Sections</h3>${added.length || removed.length ? added.map(s => `<div class="add">+ ${names[s]}</div>`).join('') + removed.map(s => `<div class="rem">${names[s]}</div>`).join('') : '<div style="color:var(--muted)">Same sections.</div>'}</div>
+      <div class="chg"><h3>Design</h3>${tok.map(t => `<div class="tokrow"><i style="background:${pa[t]}"></i>→<i style="background:${pb[t]}"></i>${t}</div>`).join('') || ''}
+        ${a.fonts.join() !== b.fonts.join() ? `<div class="tokrow">${a.fonts.join(' + ')} → ${b.fonts.join(' + ')}</div>` : ''}${a.radius !== b.radius ? `<div class="tokrow">Corners ${a.radius}px → ${b.radius}px</div>` : ''}
+        ${!tok.length && a.fonts.join() === b.fonts.join() && a.radius === b.radius ? '<div style="color:var(--muted)">No design changes.</div>' : ''}</div>
+      <div class="chg"><h3>Components</h3>${[...cb].filter(c => !ca.has(c)).map(c => `<div class="add">+ ${c}</div>`).join('')}${[...ca].filter(c => !cb.has(c)).map(c => `<div class="rem">${c}</div>`).join('') || ''}
+        ${a.components.join() === b.components.join() ? '<div style="color:var(--muted)">Same components.</div>' : ''}</div>
+      <div class="chg"><h3>Plumbing</h3><div>Invented: ${plA} → ${plB}</div>${plB < plA ? '<div class="add">Fewer made-up things.</div>' : plB > plA ? '<div class="inv">New made-up things to check.</div>' : ''}</div>
+      <div class="chg"><h3>Briefings in between</h3>${between.length ? between.map(v => `<div style="margin-bottom:6px"><b>${v.id}</b> ${v.changes.join(' ')}</div>`).join('') : '<div style="color:var(--muted)">Pick two different versions.</div>'}</div>
+    </div>`;
+  $('#diffA').onchange = (e) => { state.diffA = +e.target.value; renderDiff() };
+  $('#p-diff').querySelectorAll('[data-dm]').forEach(b => b.onclick = () => { state.diffMode = b.dataset.dm; renderDiff() });
+  const o = $('#onion'); if (o) o.oninput = (e) => { state.onion = +e.target.value; $('#p-diff .layer').style.opacity = state.onion / 100 };
+}
+
+function setView(view) {
+  state.view = view;
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === view));
+  const pv = view === 'preview';
+  flow.style.display = pv ? '' : 'none';
+  stage.classList.toggle('panels', !pv);
+  $('#caption').style.display = pv ? '' : 'none';
+  ['brief', 'design', 'plumbing', 'diff'].forEach(p => $('#p-' + p).classList.toggle('show', p === view));
+  if (!pv && state.noting) $('#noteBtn').click();
+  renderPanel();
+}
+function renderPanel() {
+  if (state.view === 'brief') renderBrief();
+  if (state.view === 'design') renderDesign();
+  if (state.view === 'plumbing') renderPlumbing();
+  if (state.view === 'diff') renderDiff();
+}
+
+/* ---------- navigation ---------- */
+function go(k) {
+  k = Math.max(0, Math.min(V.length - 1, k));
+  state.i = k; closePop();
+  $('#scrub').value = k;
+  $('#when').textContent = V[k].date;
+  $('#makeCurrent').disabled = k === state.current;
+  $('#makeCurrent').style.opacity = k === state.current ? .45 : 1;
+  layout(); renderList(); renderPanel();
+}
+$('#prev').onclick = () => go(state.i - 1);
+$('#next').onclick = () => go(state.i + 1);
+$('#scrub').oninput = (e) => go(+e.target.value);
+$('#toCurrent').onclick = () => go(state.current);
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest('textarea, input, select')) return;
+  if (e.key === 'ArrowLeft') go(state.i - 1);
+  if (e.key === 'ArrowRight') go(state.i + 1);
+  if (e.key === 'Escape') closePop();
+});
+let tx = null;
+stage.addEventListener('touchstart', (e) => { if (state.view === 'preview' && !state.noting) tx = e.touches[0].clientX }, { passive: true });
+stage.addEventListener('touchend', (e) => { if (tx === null) return; const dx = e.changedTouches[0].clientX - tx; tx = null; if (Math.abs(dx) > 40) go(state.i + (dx < 0 ? 1 : -1)) });
+stage.addEventListener('wheel', (() => { let lock = false; return (e) => { if (state.view !== 'preview' || Math.abs(e.deltaX) < Math.abs(e.deltaY) || lock) return; if (Math.abs(e.deltaX) > 18) { lock = true; go(state.i + (e.deltaX > 0 ? 1 : -1)); setTimeout(() => lock = false, 380) } } })(), { passive: true });
+
+let flying = null;
+$('#flyBtn').onclick = () => {
+  if (flying) { clearInterval(flying); flying = null; $('#flyBtn').lastChild.textContent = 'Fly through'; return }
+  if (state.view !== 'preview') setView('preview');
+  let k = 0; go(0); $('#flyBtn').lastChild.textContent = 'Stop';
+  flying = setInterval(() => { k++; if (k >= V.length) { clearInterval(flying); flying = null; $('#flyBtn').lastChild.textContent = 'Fly through'; return } go(k) }, 700);
+};
+
+/* ---------- toggles ---------- */
+function setVP(vp) { state.vp = vp; $('#vpLaptop').setAttribute('aria-pressed', vp === 'laptop'); $('#vpPhone').setAttribute('aria-pressed', vp === 'phone'); layout(); renderPanel() }
+$('#vpLaptop').onclick = () => setVP('laptop'); $('#vpPhone').onclick = () => setVP('phone');
+function setTheme(t) { state.theme = t; $('#thLight').setAttribute('aria-pressed', t === 'light'); $('#thDark').setAttribute('aria-pressed', t === 'dark'); refreshFrames(); renderPanel() }
+$('#thLight').onclick = () => setTheme('light'); $('#thDark').onclick = () => setTheme('dark');
+$('#appTheme').onclick = () => {
+  const root = document.documentElement;
+  const isLight = root.dataset.theme ? root.dataset.theme === 'light' : matchMedia('(prefers-color-scheme: light)').matches;
+  root.dataset.theme = isLight ? 'dark' : 'light';
+};
+
+let undoFn = null, tt;
+function toast(msg, undo) {
+  $('#toastText').textContent = msg; undoFn = undo || null; $('#toastUndo').hidden = !undo;
+  $('#toast').classList.add('show'); clearTimeout(tt); tt = setTimeout(() => $('#toast').classList.remove('show'), 4200);
+}
+$('#toastUndo').onclick = () => { if (undoFn) undoFn(); $('#toast').classList.remove('show') };
+$('#makeCurrent').onclick = () => {
+  const was = state.current; state.current = state.i; state.diffA = state.i;
+  go(state.i);
+  toast(`${V[state.i].id} is now current and going live.`, () => { state.current = was; state.diffA = was; go(state.i); toast(`${V[was].id} is current again.`) });
+};
+
+window.addEventListener('resize', () => { layout(); if (state.view === 'diff') renderDiff() });
+document.addEventListener('click', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('.overlay') && !e.target.classList.contains('pin')) closePop() });
+
+if (matchMedia('(max-width: 860px)').matches) { state.vp = 'phone'; $('#vpLaptop').setAttribute('aria-pressed', false); $('#vpPhone').setAttribute('aria-pressed', true) }
+buildFlow(); renderList(); renderWaiting(); go(state.i);
+})();
+</script>
+</body>
+</html>
